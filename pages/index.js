@@ -1,65 +1,67 @@
 import Head from 'next/head'
-import styles from '../styles/Home.module.css'
-
-export default function Home() {
+import { db } from "../config";
+export default function Home({ data, error }) {
   return (
-    <div className={styles.container}>
+    <div>
       <Head>
-        <title>Create Next App</title>
+        <title>Deploying Next App SSR</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
-
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
-
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className={styles.card}
-          >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
+      {console.log("DATA", data, error)}
+      {error && <p>Oops something went wrong!</p>}
+      {data?.map(collections => {
+        return <div key={collections.title}>
+          <h2>{collections.title}</h2>
+          <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+            {collections?.data?.map(product=>{
+              return <div style={{border:"1px solid red",flex:"0 0 18%",}} key={`item-${product.id}`}>
+                <img width="100%" height="320px"style={{objectFit:"cover"}} src={product?.imageUrl}/>
+                <div style={{display:"flex",alignItems:"center",padding:"8px 16px"}}>
+                <p style={{flexBasis:"0 0 75%",marginRight:"auto"}}>{product?.name}</p>
+                <h3>Rs.{product?.price}</h3>
+                </div>
+              </div>
+            })}
+           
+          </div>
         </div>
-      </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
-        </a>
-      </footer>
-    </div>
-  )
+      }
+      )
+      }
+    </div>)
 }
+
+
+export async function getStaticProps(context) {
+  let mappedData = []
+  try {
+    const response = db.collection('collections')
+    const data = await response.get();
+    mappedData = convertCollectionsSnapshotToMap(data);
+    return {
+      props: { data: mappedData },
+    }
+  }
+  catch (e) {
+    return {
+      props: {
+        data: null,
+        error: e
+      }
+    }
+
+  }
+
+}
+const convertCollectionsSnapshotToMap = collections => {
+  const transformedCollection = collections.docs.map(doc => {
+    const { title, items } = doc.data();
+    return { id: doc.id, title, route: encodeURI(title.toLowerCase()), items };
+  });
+  return transformedCollection.reduce((accmulator, collection) => {
+    accmulator.push({ title: collection.title, data: collection.items });
+    return accmulator;
+  }, []);
+
+};
+
